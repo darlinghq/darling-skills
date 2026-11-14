@@ -1,6 +1,6 @@
 ---
 name: darling-guest-testing
-description: Build a Darling change, install only what changed, restart the container and test it inside the guest - cross-compiling guest test programs on the host, running them with darling shell, GUI tests on Xvfb, before/after comparison and cleanup of leftover processes. Use whenever a Darling change has to be verified at runtime.
+description: Build a Darling change, install only what changed, restart the container and test it inside the guest - cross-compiling guest test programs on the host, running them with darling shell, GUI tests on Xvfb (X11) or headless sway (Wayland), before/after comparison and cleanup of leftover processes. Use whenever a Darling change has to be verified at runtime.
 ---
 
 # Testing a change inside Darling
@@ -96,6 +96,24 @@ timeout -s KILL 120 darling shell env DISPLAY=:99 /Volumes/SystemRoot/.../t </de
 ```
 - Use display `:99` only. xfwm4 is needed because some window behaviour (focus, stacking, maximise) needs a real window manager.
 - Prefer tests that check state through the API, such as frames, key window or pixel readback through the toolkit, over screenshots.
+
+### Wayland
+```
+eval "export $(scripts/wayland.sh -s 2)"   # headless sway; prints DARLING_APPKIT_BACKEND, WAYLAND_DISPLAY, XDG_RUNTIME_DIR
+timeout -s KILL 120 darling shell env DARLING_APPKIT_BACKEND=wayland WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+        /Volumes/SystemRoot/.../t </dev/null > out.txt 2>&1
+scripts/wayland.sh -s 1.5                 # change the output scale of the running compositor
+scripts/wayland.sh stop
+```
+- **Headless sway** (`WLR_BACKENDS=headless`, pixman renderer) runs in a private runtime directory, so it never touches a desktop session. Its config has no borders and floats every window, so window frames are exactly what the client asked for. It supports xdg-shell, xdg-decoration, xdg-output, fractional-scale, viewporter, pointer-constraints and relative-pointer.
+  - `weston --backend=headless` also works for window, clipboard and drag tests, but has no fractional-scale.
+  - A nested compositor on Xvfb (`WLR_BACKENDS=x11`) only on a display of its own, such as `:98`, never on the shared `:99`.
+- **Backend choice:** AppKit takes `DARLING_APPKIT_BACKEND` (`wayland` or `x11`), then the `DisplayBackend` preference, then uses Wayland whenever `WAYLAND_DISPLAY` is set. If the compositor can't be reached it falls back to X11 silently. So a test must check which backend it actually got (for example the display class) and print SKIP, not PASS, when it is not the one under test.
+- **`WAYLAND_DISPLAY` must be the absolute host path** of the socket, not a `/Volumes/SystemRoot/...` path: the host's native libwayland opens it outside the container.
+- **The container keeps the environment it started with.** The launcher passes `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY` and `XDG_RUNTIME_DIR` through to the container's daemons, but only when the container starts. Run `darling shutdown` before switching between X11 and Wayland tests or to a new compositor socket; otherwise daemons keep talking to the old one.
+- **Scale:** with an output scale `s`, `NSScreen` and `NSWindow` report the integral `ceil(s)` as `backingScaleFactor`. Content is drawn at that scale and shown at the logical size through wp_viewporter. Test at 1, 2 and a fractional scale such as 1.5.
+- **What headless can't do:** there is no pointer, so pointer-lock tests can only SKIP. Clipboard and drag-and-drop need keyboard focus and an input serial, which headless sway only gives after injected input. Test those parts through the API where possible, and say what was not covered.
+- **After any change to shared AppKit or CoreGraphics code, rerun the X11 GUI tests on Xvfb too.** The two backends share most of the window code.
 
 ## 6. Regression set
 After the targeted tests pass, run your regression set if you keep one (Darling's own `ctest` in the build dir, plus any guest programs you collect). Compare it with the recorded baseline, not with "all green": some cases have known non-zero exit codes. Report what changed against the baseline.
