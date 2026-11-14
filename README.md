@@ -42,6 +42,53 @@ Start a new Claude Code session afterwards and check with `/skills`, or ask "whi
 
 The skills use the scratchpad, `sudo -n` for installs, and `ssh` only where you set up a Mac for observation. Allow or deny those in Claude Code's permission settings as you prefer.
 
+## Google Antigravity
+Antigravity discovers skills globally from `~/.gemini/config/skills/` and per-workspace from `.agents/skills/`.
+
+Install for yourself (all workspaces):
+```
+mkdir -p ~/.gemini/config/skills
+for s in ~/darling-skills/darling-*/; do ln -sfn "$s" ~/.gemini/config/skills/"$(basename "$s")"; done
+```
+
+To use them only in your Darling checkout:
+```
+mkdir -p <darling>/.agents/skills
+for s in ~/darling-skills/darling-*/; do ln -sfn "$s" <darling>/.agents/skills/"$(basename "$s")"; done
+```
+
+Antigravity uses progressive disclosure: skill descriptions are indexed into context at startup, and the full `SKILL.md` is loaded on demand when a task matches.
+
+## Codex
+Codex discovers skills globally from `~/.codex/skills/` (and `~/.agents/skills/`) and project-locally from `.codex/skills/` or `.agents/skills/`.
+
+Install for yourself:
+```
+mkdir -p ~/.codex/skills
+for s in ~/darling-skills/darling-*/; do ln -sfn "$s" ~/.codex/skills/"$(basename "$s")"; done
+```
+
+To use them only in your Darling checkout:
+```
+mkdir -p <darling>/.codex/skills
+for s in ~/darling-skills/darling-*/; do ln -sfn "$s" <darling>/.codex/skills/"$(basename "$s")"; done
+```
+
+## OpenCode
+OpenCode natively supports `SKILL.md` skills, discovering them globally from `~/.config/opencode/skills/` and project-locally from `.opencode/skills/` (and `.agents/skills/`).
+
+Install for yourself:
+```
+mkdir -p ~/.config/opencode/skills
+for s in ~/darling-skills/darling-*/; do ln -sfn "$s" ~/.config/opencode/skills/"$(basename "$s")"; done
+```
+
+To use them only in your Darling checkout:
+```
+mkdir -p <darling>/.opencode/skills
+for s in ~/darling-skills/darling-*/; do ln -sfn "$s" <darling>/.opencode/skills/"$(basename "$s")"; done
+```
+
 ## Claude Agent SDK
 Agents built with the Claude Agent SDK load skills from the same directories when filesystem settings are enabled: `.claude/skills/` in the working directory, or `~/.claude/skills/` for user settings. Install them as for Claude Code and enable the matching setting sources in your agent's options. See the SDK's documentation on skills for the exact option names in your SDK version.
 
