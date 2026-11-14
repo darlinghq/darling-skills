@@ -76,6 +76,7 @@ scripts/shot.sh shot2.jpg                       # whole screen; JPEG for photo-l
 - **Crop to the window** (`-w`), with the white background around it. Make the window a sensible size first; a 600x400 window reads better scaled down than a full 1920x1080 screen.
 - **PNG for UI** (sharp text; `pngquant` keeps it small), **JPEG for games, video and photos**. If text becomes unreadable at 150 KB, crop tighter instead of shrinking further.
 - **No personal data:** no real names, email addresses, usernames in paths, host names, tokens or licence keys. Use a neutral guest user and sample documents.
+- **Wait for drawing to finish.** `-w` waits up to 10 s for the window to appear, but not for its contents; a capture right after a window opens can show it half drawn. Wait until the app is idle (a few seconds, longer for games and first launches) before shooting.
 - Check each file by looking at it before submitting.
 
 ## 7. Write the entry

@@ -11,7 +11,10 @@ while getopts s: o; do
 done
 shift $((OPTIND - 1))
 
-RUN=${DARLING_WAYLAND_RUNTIME:-${TMPDIR:-/tmp}/darling-wayland-$(id -u)}
+RUN=${DARLING_WAYLAND_RUNTIME:-/tmp/darling-wayland-$(id -u)}
+# sway's IPC socket name (sway-ipc.<uid>.<pid>.sock) must fit a Unix socket
+# path (108 bytes); sway crashes at start-up when it does not
+[ ${#RUN} -le 64 ] || { echo "runtime directory path too long for sway's sockets (max 64): $RUN" >&2; exit 2; }
 pidfile=$RUN/sway.pid
 
 if [ "${1:-}" = stop ]; then

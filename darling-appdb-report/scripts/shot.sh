@@ -47,7 +47,12 @@ if best:
 else
 	: "${DISPLAY:?set DISPLAY or WAYLAND_DISPLAY}"
 	if [ -n "$title" ]; then
-		id=$(xdotool search --onlyvisible --name "$title" | tail -1)
+		# give a window that is still being mapped up to 10 s to appear
+		for i in $(seq 20); do
+			id=$(xdotool search --onlyvisible --name "$title" 2>/dev/null | tail -1)
+			[ -n "$id" ] && break
+			sleep 0.5
+		done
 		[ -n "$id" ] || { echo "no visible window titled *$title*" >&2; exit 1; }
 		xwd -silent -frame -id "$id" > "$tmp/s.xwd"
 	else
