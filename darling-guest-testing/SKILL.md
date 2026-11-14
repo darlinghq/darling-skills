@@ -112,7 +112,16 @@ scripts/wayland.sh stop
 - **`WAYLAND_DISPLAY` must be the absolute host path** of the socket, not a `/Volumes/SystemRoot/...` path: the host's native libwayland opens it outside the container.
 - **The container keeps the environment it started with.** The launcher passes `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY` and `XDG_RUNTIME_DIR` through to the container's daemons, but only when the container starts. Run `darling shutdown` before switching between X11 and Wayland tests or to a new compositor socket; otherwise daemons keep talking to the old one.
 - **Scale:** with an output scale `s`, `NSScreen` and `NSWindow` report the integral `ceil(s)` as `backingScaleFactor`. Content is drawn at that scale and shown at the logical size through wp_viewporter. Test at 1, 2 and a fractional scale such as 1.5.
-- **What headless can't do:** there is no pointer, so pointer-lock tests can only SKIP. Clipboard and drag-and-drop need keyboard focus and an input serial, which headless sway only gives after injected input. Test those parts through the API where possible, and say what was not covered.
+- **Input:** headless sway has no real devices, so inject virtual ones with `wtype` (virtual keyboard) and `wlrctl` (virtual pointer), both in Debian:
+  ```
+  export WAYLAND_DISPLAY=... XDG_RUNTIME_DIR=...    # as printed by wayland.sh
+  wtype -s 200 'abc é ß' -k Return    # text, then a named key; -M ctrl / -m ctrl hold or release a modifier
+  wlrctl pointer move 100 50; wlrctl pointer click left
+  ```
+  - Always pass **`-s 200`** (a pause first): the client receives the new virtual keyboard's keymap just before the first key, and without the pause that key is lost.
+  - Keys go to the focused window. Start typing only after the test window has appeared; with the floating config the newest window has focus.
+  - Injected input also provides the input serial that clipboard, drag-and-drop and pointer-lock requests need, so those tests can run instead of SKIP.
+  - Pair every injected event with a check through the API (`characters`, `keyCode`, modifier flags, pasteboard contents), printed as PASS/FAIL.
 - **After any change to shared AppKit or CoreGraphics code, rerun the X11 GUI tests on Xvfb too.** The two backends share most of the window code.
 
 ## 6. Regression set
