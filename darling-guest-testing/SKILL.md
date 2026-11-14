@@ -5,10 +5,10 @@ description: Build a Darling change, install only what changed, restart the cont
 
 # Testing a change inside Darling
 
-Scripts are in `~/darling-skills/darling-guest-testing/scripts`. They read:
-- `DARLING_SRC` (default `~/darling`);
-- `DARLING_BUILD` (default: the newest `build*/` with a `CMakeCache.txt`);
-- `DARLING_ROOT` (default `/usr/local/libexec/darling`).
+The scripts are in `scripts/` next to this file; run them from inside the Darling checkout (or one of its submodules). They read:
+- `DARLING_SRC` (default: the Darling checkout containing the current directory);
+- `DARLING_BUILD` (default: the newest `build*/` in it with a `CMakeCache.txt`);
+- `DARLING_ROOT` (default: `<prefix>/libexec/darling` of the `darling` launcher on `PATH`, else Darling's default `/usr/local/libexec/darling`).
 
 ## Ground rules
 - **The installed Darling is shared:** only one agent at a time may install into it and run tests.
@@ -78,7 +78,7 @@ Details:
 timeout -s KILL 120 darling shell /Volumes/SystemRoot/<abs host path>/t </dev/null > out.txt 2>&1; echo rc=$?
 ```
 - Host files are visible in the guest under `/Volumes/SystemRoot`. Run test binaries from there.
-- **The prefix (`~/.darling`) is an overlay:** files written into it from the host while the container runs are not reliably visible in the guest. To place a file in the guest:
+- **The prefix (`$DPREFIX`, `~/.darling` by default) is an overlay:** files written into it from the host while the container runs are not reliably visible in the guest. To place a file in the guest:
 
   ```
   darling shell cp /Volumes/SystemRoot/<host path> /Users/<user>/...
@@ -98,7 +98,7 @@ timeout -s KILL 120 darling shell env DISPLAY=:99 /Volumes/SystemRoot/.../t </de
 - Prefer tests that check state through the API, such as frames, key window or pixel readback through the toolkit, over screenshots.
 
 ## 6. Regression set
-After the targeted tests pass, run the project's regression set if there is one. In the VibeDarling upstreaming work that is `vd-upstream/tools/regress.sh <outdir>`. Compare it with the recorded baseline, not with "all green": some cases have known non-zero exit codes. Report what changed against the baseline.
+After the targeted tests pass, run your regression set if you keep one (Darling's own `ctest` in the build dir, plus any guest programs you collect). Compare it with the recorded baseline, not with "all green": some cases have known non-zero exit codes. Report what changed against the baseline.
 
 ## 7. Report and clean up
 - Report, for each test: the command, the result before, the result after, and the regression comparison.

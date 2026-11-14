@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Statically compare a macOS app's imports against an installed Darling.
 
-usage: scan_app.py <app dir or Mach-O> [--arch x86_64] [--root /usr/local/libexec/darling]
+usage: scan_app.py <app dir or Mach-O> [--arch x86_64] [--root <installed Darling tree>]
                    [--json out.json] [--max 40]
 
 Walks every Mach-O file under the app (main executable, frameworks, bundles,
@@ -14,7 +14,7 @@ loading, it only becomes NULL at runtime.
 Needs llvm-objdump and llvm-nm on the host. Only reads binary metadata (load
 commands and symbol tables); it does not disassemble anything.
 """
-import argparse, collections, functools, json, os, re, struct, subprocess, sys
+import argparse, collections, functools, json, os, re, shutil, struct, subprocess, sys
 
 def is_macho(path):
     try:
@@ -71,14 +71,25 @@ def short_names(install_name):
     b = os.path.basename(install_name)
     return {b, re.sub(r'\.dylib$', '', b), re.sub(r'(\.[A-Z0-9]+)?\.dylib$', '', b)}
 
+def default_root():
+    """<prefix>/libexec/darling of the darling launcher on PATH, else Darling's default prefix."""
+    launcher = shutil.which('darling')
+    if launcher:
+        root = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(launcher))), 'libexec', 'darling')
+        if os.path.isdir(root):
+            return root
+    return '/usr/local/libexec/darling'
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('app')
     ap.add_argument('--arch', default='x86_64')
-    ap.add_argument('--root', default='/usr/local/libexec/darling')
+    ap.add_argument('--root', default=None, help='installed Darling tree (default: from the darling launcher on PATH)')
     ap.add_argument('--json')
     ap.add_argument('--max', type=int, default=40, help='missing symbols listed per library')
     a = ap.parse_args()
+    if a.root is None:
+        a.root = default_root()
 
     files = []
     if os.path.isfile(a.app):

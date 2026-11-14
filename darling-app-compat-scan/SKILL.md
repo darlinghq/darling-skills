@@ -32,10 +32,10 @@ darling-dmg $D/dl/app.dmg $D/mnt &      # FUSE; unmount with fusermount -u $D/mn
 
 ## 2. Static scan
 ```
-python3 -I ~/darling-skills/darling-app-compat-scan/scripts/scan_app.py $D/mnt/<App>.app \
-        --arch x86_64 --json $D/scan.json [--root /usr/local/libexec/darling] [--max 40]
+python3 -I <this skill>/scripts/scan_app.py $D/mnt/<App>.app \
+        --arch x86_64 --json $D/scan.json [--root <installed Darling tree>] [--max 40]
 ```
-- It checks every Mach-O in the bundle against the installed Darling (default root `/usr/local/libexec/darling`), following re-exports. This is roughly 1 minute for 350 files.
+- It checks every Mach-O in the bundle against the installed Darling (default root: `<prefix>/libexec/darling` of the `darling` launcher on `PATH`, else `/usr/local/libexec/darling`), following re-exports. This is roughly 1 minute for 350 files.
 - It sorts the output with libraries Darling lacks first, then those with the most missing **strong** imports.
 - **A missing strong import** makes dyld refuse to load that image. Missing **weak** imports only become NULL.
 - **Which file imports it matters.**
