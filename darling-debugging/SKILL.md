@@ -75,23 +75,10 @@ Known limitations:
 
   Fix the general behaviour, never something lldb-specific.
 
-## 4. Crashes in 32-bit Objective-C apps: check the instance sizes
-32-bit macOS apps use the legacy (fragile) Objective-C ABI. A subclass's instance size and ivar offsets are fixed when the app is compiled, against Apple's superclass layout. If Darling's superclass is larger, the app's ivars overlap Darling's and its instances are allocated too small. The result is heap corruption that shows up far from its cause:
-- garbage `isa` values in `objc_msgSend` or selector registration;
-- `release` sent to objects holding text;
-- `-[__NSCFString _view]: unrecognized selector` and similar type confusion;
-- faults that move from run to run.
+## 4. Heap corruption in 32-bit Objective-C apps
+32-bit apps use the legacy (fragile) Objective-C ABI, where a subclass's ivar offsets are fixed at compile time against Apple's superclass size. If one of Darling's classes is larger than Apple's, the app's subclass corrupts the heap. Symptoms: garbage `isa` values in `objc_msgSend`, messages to objects that hold text, `unrecognized selector` on the wrong class, and faults that move from run to run.
 
-To check:
-1. Set `OBJC_DEBUG_FRAGILE_SUPERCLASSES=YES` in the program's environment. The runtime warns about subclasses whose ivars overlap their superclass.
-2. Read the app's own class layout from its binary: `llvm-objdump --macho --objc-meta-data <app binary>`. It shows instance sizes and ivar offsets.
-   - Disassembling and inspecting the app's own non-Apple code is allowed for compatibility troubleshooting.
-   - Never inspect Apple binaries, including Apple frameworks bundled inside an app.
-3. Compare with Darling's sizes: a small guest program printing `class_getInstanceSize` and `ivar_getOffset` for the superclasses, built with `-a i386`.
-
-A subclass's first ivar offset equals Apple's superclass size. If Darling's superclass is bigger, that is the bug. Darling's AppKit is being changed to keep Apple's legacy-ABI instance sizes, with extra state behind a pointer; each converted class declaration states the size it must keep. Never add ivars past a stated size, and report a class whose size differs from Apple's.
-
-x86_64 and arm64 use the non-fragile ABI, whose runtime slides ivars, so they aren't affected.
+Darling's AppKit keeps Apple's sizes. Other frameworks whose classes apps subclass may not. Run the program with `OBJC_DEBUG_FRAGILE_SUPERCLASSES=YES` and the runtime names any subclass that overlaps its superclass.
 
 ## 5. Clean up
 - Restore `vm.mmap_min_addr` if you changed it.
