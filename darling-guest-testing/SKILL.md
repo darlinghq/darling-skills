@@ -1,0 +1,107 @@
+---
+name: darling-guest-testing
+description: Build a Darling change, install only what changed, restart the container and test it inside the guest - cross-compiling guest test programs on the host, running them with darling shell, GUI tests on Xvfb, before/after comparison and cleanup of leftover processes. Use whenever a Darling change has to be verified at runtime.
+---
+
+# Testing a change inside Darling
+
+Scripts are in `~/darling-skills/darling-guest-testing/scripts`. They read:
+- `DARLING_SRC` (default `~/darling`);
+- `DARLING_BUILD` (default: the newest `build*/` with a `CMakeCache.txt`);
+- `DARLING_ROOT` (default `/usr/local/libexec/darling`).
+
+## Ground rules
+- **The installed Darling is shared:** only one agent at a time may install into it and run tests.
+- **Never pipe `darling shell` output** (`| head`, `| grep`). Redirect to a file, then read the file.
+- **Always** pass `</dev/null` and put a `timeout -s KILL` around a guest run, because a hung guest program keeps the shell blocked. `timeout` alone doesn't kill Darling programs; use `-s KILL`.
+- **No `rm` inside the guest.** Clean up from the host, after shutdown.
+- **Run the tests before the change as well as after.** A test that fails before and passes after is the evidence.
+- **Never weaken or delete a failing test** to get a pass.
+
+## 1. Build and install only what changed
+```
+scripts/rebuild.sh <Target> [<Target>...]       # e.g. AppKit CoreAudio
+scripts/rebuild.sh -f <Target>                  # <target>/fast: skips dependency checks
+```
+The script:
+1. builds the targets;
+2. stops Darling;
+3. runs `sudo -n cmake -P cmake_install.cmake` in each target's build directory;
+4. starts Darling again.
+
+The whole cycle takes seconds, against minutes for a top-level `make install`.
+
+Use `-f` only when nothing the target links against has changed. If headers or a lower library changed, rebuild those targets too.
+
+Do a full `make -j$(nproc)` and `sudo make install` only for:
+- widely linked changes: libsystem_kernel/xnu, libc, dyld, shared headers, `cmake/` changes;
+- the final test of a piece of work.
+
+Never put a short timeout on a full install: an interrupted install invalidates the test.
+
+**Submodules:** apply the change in the submodule checkout under `src/external/<repo>`. The build uses that tree directly.
+
+## 2. Restart and leftovers
+```
+scripts/restart.sh          # shutdown, report leftovers, start (retries the first start)
+scripts/leftovers.sh [-k]   # list (and with -k kill) mldr/darlingserver processes
+```
+- `darling shutdown` sometimes reports "not running" while a container launchd, its daemons or a hung test stay alive. They block installing and pile up over time.
+- Kill only processes from your own runs, and list what you killed in your report.
+- Right after a shutdown, the first `darling shell` can fail with "Cannot open mnt namespace file". `restart.sh` retries.
+- **Don't** use `pgrep -f`/`pkill -f` with a plain pattern from a script: it can match, and kill, your own shell. Use `ps … | grep '[p]attern'`.
+
+## 3. Guest test programs
+There is no compiler inside the guest. Cross-compile on the host:
+```
+scripts/guest-cc.sh -o /path/t t.c
+scripts/guest-cc.sh -a i386 -o /path/t32 t.c
+scripts/guest-cc.sh -o /path/t t.m -framework Foundation -framework AppKit -fobjc-arc
+scripts/guest-cc.sh -o /path/libx.dylib -dynamiclib -install_name @rpath/libx.dylib x.c
+```
+It uses:
+- host clang with `-target <arch>-apple-macos<min>`;
+- the **source-tree** SDK. The `build/Developer` copy lacks most headers.
+- Darling's ld64 through `-B`;
+- the subframeworks of each umbrella framework, such as `<AE/AE.h>` under CoreServices, added with `-iframework`;
+- the **installed** Darling tree as a second `-syslibroot`. The SDK has headers but no link stubs for most frameworks or libobjc, so linking happens against the installed binaries. **Install before building tests that need new symbols.**
+- `adhoc-sign` on the result.
+
+Details:
+- **`-D__DARWIN_ONLY_UNIX_CONFORMANCE=1`** is added for x86_64, because without it the link fails on `$UNIX2003` symbols. It must **not** be used for i386.
+- The SDK's `<stdatomic.h>` doesn't work. Use the `__atomic_*` builtins.
+- **Write tests from the documented contract.** Make each test print one clear PASS/FAIL line, or exit non-zero on failure, so before and after can be compared mechanically.
+- **Keep test sources with the change** (for example `tests/` in the repo). The binaries are not committed.
+
+## 4. Running in the guest
+```
+timeout -s KILL 120 darling shell /Volumes/SystemRoot/<abs host path>/t </dev/null > out.txt 2>&1; echo rc=$?
+```
+- Host files are visible in the guest under `/Volumes/SystemRoot`. Run test binaries from there.
+- **The prefix (`~/.darling`) is an overlay:** files written into it from the host while the container runs are not reliably visible in the guest. To place a file in the guest:
+
+  ```
+  darling shell cp /Volumes/SystemRoot/<host path> /Users/<user>/...
+  ```
+
+  Read guest-written files with `darling shell cat`. Before blaming a framework for "not seeing" a file, check where it was written from.
+- **Root:** `darling shell sudo <cmd>`.
+- **Daemons:** `darling shell launchctl ...`. Some daemons, trustd for example, take about 20 s to come back after `launchctl stop`.
+- **Preferences** written by tests, via `defaults` or CFPreferences, stay in the prefix. Remove them afterwards with `defaults delete`.
+
+## 5. GUI tests
+```
+scripts/xvfb.sh             # Xvfb :99 (1920x1080x24, RANDR) + xfwm4
+timeout -s KILL 120 darling shell env DISPLAY=:99 /Volumes/SystemRoot/.../t </dev/null > out.txt 2>&1
+```
+- Use display `:99` only. xfwm4 is needed because some window behaviour (focus, stacking, maximise) needs a real window manager.
+- Prefer tests that check state through the API, such as frames, key window or pixel readback through the toolkit, over screenshots.
+
+## 6. Regression set
+After the targeted tests pass, run the project's regression set if there is one. In the VibeDarling upstreaming work that is `vd-upstream/tools/regress.sh <outdir>`. Compare it with the recorded baseline, not with "all green": some cases have known non-zero exit codes. Report what changed against the baseline.
+
+## 7. Report and clean up
+- Report, for each test: the command, the result before, the result after, and the regression comparison.
+- If you changed host settings (device permissions and so on), say what you changed.
+- Afterwards, if the change is not meant to stay installed, revert it in the checkout and reinstall the affected targets, so the next person tests a clean tree. Keep a list of patches applied to the shared checkout, and revert them newest first.
+- Remove your scratch files. Don't delete other people's `/tmp` data or screen sockets.
