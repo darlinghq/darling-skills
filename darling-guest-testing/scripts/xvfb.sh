@@ -9,4 +9,6 @@ if ! ps -eo args= | grep -q '[x]fwm4'; then
 	DISPLAY=:99 nohup xfwm4 --compositor=off --sm-client-disable >/dev/null 2>&1 &
 	sleep 1
 fi
+# white root window, so screenshots and transparent window areas are not shown on black
+DISPLAY=:99 xsetroot -solid white
 ps -eo pid=,args= | grep -E '^ *[0-9]+ ([X]vfb :99|[x]fwm4)'

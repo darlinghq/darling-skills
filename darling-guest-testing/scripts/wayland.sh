@@ -29,6 +29,8 @@ else
 	# no borders or tiling, so window frames are exactly what the client asked for
 	cat > "$RUN/config" <<EOF
 output * resolution 1920x1080 scale $scale
+# white, so screenshots and transparent window areas are not shown on black
+output * bg #FFFFFF solid_color
 default_border none
 default_floating_border none
 for_window [shell=".*"] floating enable
