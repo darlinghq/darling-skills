@@ -15,12 +15,12 @@ Host tools needed: ImageMagick, `pngquant`, `xdotool` and `xwd` for X11, `grim` 
 - Note the exact version and its **official download URL** (https, from the vendor; no mirrors, URL shorteners or raw IPs, which block auto-merge).
 - Check the database first. An existing software or version entry is reused, never edited (see section 7).
 - Untrusted download: give each download its own new directory in the scratchpad, keep scripts elsewhere, and never run anything from it on the host.
-- Check the binary's architectures with `llvm-objdump --macho --universal-headers`. On an x86_64 Darling, an arm64-only build cannot run; say so in the report rather than testing it.
+- Check the binary's architectures with `llvm-objdump --macho --universal-headers` (it prints nothing for a thin, single-architecture binary; use `llvm-objdump --macho --private-headers <binary> | head` and read `cputype`, or `file`). On an x86_64 Darling, an arm64-only build cannot run; say so in the report rather than testing it.
 
 ## 2. Install it in the guest
 Host files are visible in the guest under `/Volumes/SystemRoot`.
 - **DMG:** mount on the host with `darling-dmg app.dmg <mnt> &` (unmount with `fusermount -u <mnt>`), then `darling shell cp -R "/Volumes/SystemRoot<mnt>/App.app" /Applications/`. Alternatively try `darling shell hdiutil attach /Volumes/SystemRoot<path>/app.dmg`, which also tests Darling's own DMG support.
-- **ZIP:** `darling shell ditto -x -k "/Volumes/SystemRoot<path>/app.zip" /Applications/`.
+- **ZIP:** Darling's `ditto` understands only `-rsrc` and `--bom`, so `ditto -x -k` fails with "Bad argument #1". Use the guest's unzip: `darling shell unzip -q -o -d /Applications "/Volumes/SystemRoot<path>/app.zip" -x '__MACOSX/*'` (it keeps the executable bit). Mention in the report that unzip was used. Use `</dev/null` and `timeout -s KILL` as always.
 - **PKG:** `darling shell sudo installer -pkg "/Volumes/SystemRoot<path>/app.pkg" -target /`. A failing installer is a finding for the report, not a reason to unpack the payload by hand without saying so.
 - Install the way a user would. Any manual step needed (a quarantine attribute, a missing directory) is a workaround, and it lowers the rating (section 5).
 
@@ -37,6 +37,8 @@ eval "export $(<guest-testing>/scripts/wayland.sh)"      # Wayland: headless swa
   timeout -s KILL 600 darling shell env DISPLAY=:99 "/Applications/App.app/Contents/MacOS/App" </dev/null > app.log 2>&1 &
   ```
   `open -a` also works, but loses the log. Give the app time to start; a first launch can take longer while caches are built.
+- A splash screen, intro video or loading screen lasts only a few seconds. To report what happens there, start a capture loop in the same command as the launch, for example `for i in $(seq 1 30); do import -window root -resize 480x270 v$(printf %02d $i).jpg; sleep 0.7; done`, then look at a `montage` contact sheet of the frames. Also check whether the bundle contains the media file at all (`find <App>.app -iname '*.mov' -o -iname '*.mp4'`) and say so.
+- To stop leftovers, `pkill -f` with a bracketed pattern (`pkill -f '[A]ngry Birds.app/Contents/MacOS'`) and run it as its own command; a pattern that also appears in the command line of the shell running it kills that shell.
 
 ## 4. Test what it is for
 A report is only useful if it says what works. Test like a user, in this order:
@@ -44,7 +46,7 @@ A report is only useful if it says what works. Test like a user, in this order:
 2. The app's core task, end to end. For example: an editor opens, edits, saves and reopens a file; a calculator computes; a game reaches gameplay and responds to input; a utility does its one job.
 3. The menu bar and common shortcuts (Cmd+O, Cmd+S, Cmd+Q), preferences, resizing, and opening and saving through the file dialogs.
 4. Anything the app depends on: networking, audio, OpenGL/Metal rendering, printing, clipboard, drag and drop.
-5. Quitting cleanly, and a second launch.
+5. Quitting cleanly, and a second launch. On X11 the Command key is the Super key: `xdotool key super+q` is Cmd+Q (`alt+q` does nothing). Confirm the process is gone afterwards.
 
 Input:
 - On X11, drive it with `xdotool` (`key`, `type`, `mousemove`, `click`).
@@ -77,13 +79,13 @@ scripts/shot.sh shot2.jpg                       # whole screen; JPEG for photo-l
 - **Show the app doing its job**, not a splash screen, an empty window or a loading bar. One screenshot of the main window with real content is worth more than several of dialogs.
 - **One idea per screenshot:** the main window in use, a key feature working, and, if something is broken, the clearest picture of the breakage (the garbled view or the error dialog).
 - **Crop to the window** (`-w`), with the white background around it. Make the window a sensible size first; a 600x400 window reads better scaled down than a full 1920x1080 screen.
-- **PNG for UI** (sharp text; `pngquant` keeps it small), **JPEG for games, video and photos**. If text becomes unreadable at 150 KB, crop tighter instead of shrinking further.
+- **PNG for UI** (sharp text; `pngquant` keeps it small), **JPEG for games, video and photos**. `new_entry.py` keeps the extension (`screenshot-0.jpg`); the validator accepts only `.png` and `.jpg`, not `.jpeg`. A full-screen capture converted with `convert shot.png -resize 1280x720 -strip -quality 85 out.jpg` is usually under 150 KB. If text becomes unreadable at 150 KB, crop tighter instead of shrinking further.
 - **No personal data:** no real names, email addresses, usernames in paths, host names, tokens or licence keys. Use a neutral guest user and sample documents.
 - **Wait for drawing to finish.** `-w` waits up to 10 s for the window to appear, but not for its contents; a capture right after a window opens can show it half drawn. Wait until the app is idle (a few seconds, longer for games and first launches) before shooting.
 - Check each file by looking at it before submitting.
 
 ## 7. Write the entry
-Fork darlinghq/darling-appdb-database and clone your fork. Then:
+Fork darlinghq/darling-appdb-database and clone your fork (for a local trial without a fork, a plain clone and a local branch work; use `origin/master` as the base below). Then:
 ```
 python3 -I scripts/new_entry.py <checkout> <Name> <version> <status> description.txt \
     --screenshot shot1.png --screenshot shot2.png \
@@ -118,7 +120,7 @@ Write it as plain sentences. Describe behaviour, not Darling internals, and don'
 Run the repository's own validator against your commit before pushing (`facts` are only used for the auto-merge decision):
 ```
 git -C <checkout> fetch upstream && git -C <checkout> commit -m "Add <Name> <version> (<status> report)"
-python3 -I <checkout>/.github/scripts/validate_pr.py --repo <checkout> --base upstream/master --head HEAD \
+python3 -I <checkout>/.github/scripts/validate_pr.py --repo <checkout> --base upstream/master --head HEAD   # origin/master in a plain clone \
     --merged-prs 1 --open-prs 1 --author-created-at 2020-01-01T00:00:00Z
 ```
 - Fix every `errors` entry.
