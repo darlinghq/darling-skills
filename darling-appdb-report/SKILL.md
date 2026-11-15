@@ -109,12 +109,19 @@ Rules that matter:
 - **One app per PR:** keep each PR to one software. Each report gets its own id.
 
 The description should cover:
-- Darling version (commit or package version), host distribution and kernel, X11 or Wayland, and architecture;
-- how it was installed;
-- what was tested, what works, what fails, and any workarounds;
-- the related Darling issue numbers.
+- what you did with the app and how it went: what works, what doesn't, and how much the flaws get in the way;
+- how to install it, and anything a reader must set or do first (such as `vm.mmap_min_addr` for 32-bit apps);
+- the host distribution and X11 or Wayland, in a short closing line.
 
-Write it as plain sentences. Describe behaviour, not Darling internals, and don't paste long logs.
+**Write it for people, not as a test log.** The readers are Darling users deciding whether an app is worth trying, so write like a person telling a friend how it went:
+- Use plain, friendly sentences in the first person ("I played through the first episode, and the music and effects played throughout"). Start with the overall impression, then the details that matter.
+- Say what the app is like to use, not what you measured. "Sound works" beats "78 of 78 100 ms windows were audible"; "it quits with Cmd+Q and starts again fine" beats a list of exit codes.
+- Leave out cold facts that mean nothing to a user: commit hashes, PR and branch names, build numbers, test-tool names, capture durations, log lines and Darling internals (frameworks, function names, error codes). The Darling version can be a rough date or release.
+- Describe a flaw by what the user sees and whether it matters ("the logo is drawn into a corner of the window for a few seconds; after that the game looks right").
+- State only what you saw. Don't guess at causes, and check claims before making them (for example, look whether the app even ships the video you think is missing).
+- Keep it short: a few short paragraphs.
+
+The PR body follows the same style: two or three friendly sentences, not a list of facts.
 
 ## 8. Validate and open the PR
 Run the repository's own validator against your commit before pushing (`facts` are only used for the auto-merge decision):
@@ -129,7 +136,7 @@ python3 -I <checkout>/.github/scripts/validate_pr.py --repo <checkout> --base up
 Push to a branch of your fork and open the PR against `master`:
 ```
 gh pr create -R darlinghq/darling-appdb-database --base master --head <you>:<branch> \
-    --title "Add <Name> <version> (<status> report)" --body "<one paragraph: what was tested, on which Darling and host>"
+    --title "Add <Name> <version> (<status> report)" --body "<two or three friendly sentences: how the app runs and what to watch out for>"
 ```
 Before you push:
 - **Ask the user first.** Opening a PR publishes the report.
