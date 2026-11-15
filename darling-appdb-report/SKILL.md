@@ -121,6 +121,12 @@ The description should cover:
 - State only what you saw. Don't guess at causes, and check claims before making them (for example, look whether the app even ships the video you think is missing).
 - Keep it short: a few short paragraphs.
 
+**Markdown.** The AppDB site renders the report description as GitHub-flavoured Markdown, so you can use it to make the report easier to read:
+- `**bold**` for the one thing a reader must not miss, short bulleted lists for steps or a few separate problems, and `` `code` `` for commands and settings (`` `sudo sysctl vm.mmap_min_addr=4096` ``).
+- Links to Darling issues (`[#1234](https://github.com/darlinghq/darling/issues/1234)`) or the vendor's page.
+- A single newline already becomes a line break, so don't hard-wrap sentences; separate paragraphs with a blank line.
+- Keep it light: no headings, tables or images (screenshots go in their own field). Raw HTML and scripts are stripped. In the JSON file the description is one string, so newlines are written as `\n`; `new_entry.py` takes care of that when it reads the text file.
+
 The PR body follows the same style: two or three friendly sentences, not a list of facts.
 
 ## 8. Validate and open the PR
