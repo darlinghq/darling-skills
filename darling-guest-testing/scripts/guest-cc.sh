@@ -38,5 +38,16 @@ case $arch in
 	i386) min=${min:-10.13};;
 	arm64) min=${min:-11.0};;
 esac
-clang -target "$arch-apple-macos$min" -isysroot "$DARLING_SDK" -B "$lddir" "${flags[@]}" -o "$out" "$@"
+# @available / __builtin_available call helpers that macOS toolchains link
+# statically from libclang_rt.osx.a; the host clang has none for Darwin, so
+# link Darling's build of it (the SDK's usr/lib/darwin entry points to it).
+# Skipped when the SDK change is not built, and for compile-only runs.
+rt=$DARLING_BUILD/src/external/compiler-rt/lib/builtins/libclang_rt.osx.a
+[ -f "$rt" ] || rt=$DARLING_SDK/usr/lib/darwin/libclang_rt.osx.a
+tail=()
+if [ -f "$rt" ]; then
+	tail=("$rt")
+	for a in "$@"; do case $a in -c|-S|-E) tail=();; esac; done
+fi
+clang -target "$arch-apple-macos$min" -isysroot "$DARLING_SDK" -B "$lddir" "${flags[@]}" -o "$out" "$@" ${tail[@]+"${tail[@]}"}
 "$sign" "$out" >/dev/null
