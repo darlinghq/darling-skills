@@ -31,6 +31,7 @@ Use the darling-guest-testing scripts. Both now give a **white** background: the
 eval "export $(<guest-testing>/scripts/wayland.sh)"      # Wayland: headless sway
 ```
 - Test the backend you report on. X11 is Darling's default; Wayland is selected by `DARLING_APPKIT_BACKEND=wayland` plus `WAYLAND_DISPLAY` (see the Wayland section of darling-guest-testing). Run `darling shutdown` before switching between them.
+- For a 32-bit (i386) app, `vm.mmap_min_addr` must be 4096 or lower (see section 5). Darling users usually set it permanently (for example `vm.mmap_min_addr = 4096` in a file under `/etc/sysctl.d/`); if your host doesn't have it set, set it before testing.
 - Run the app's binary directly, so its output is captured:
   ```
   timeout -s KILL 600 darling shell env DISPLAY=:99 "/Applications/App.app/Contents/MacOS/App" </dev/null > app.log 2>&1 &
@@ -58,12 +59,14 @@ Use the status that matches what you saw:
 | Status | Meaning |
 |---|---|
 | platinum | Installs and runs out of the box; everything tested works. |
-| gold | Everything tested works, but only after a workaround (described in the report). |
+| gold | Everything that matters works, but only after a workaround, or with a small flaw that doesn't get in the way of using it (for example an intro video that doesn't play). Describe it in the report. |
 | silver | Usable for its main purpose, with minor problems in secondary features or drawing. |
 | bronze | Starts and partly works, but major features fail or it is unstable. |
 | garbage | Doesn't install, doesn't start, or is unusable. |
 
 The database only defines the five names; these meanings follow the usual AppDB convention. Rate what you actually tested; when in doubt, take the lower rating and explain why.
+
+Host settings that Darling expects for a whole class of apps are not workarounds and don't lower the rating. The main one: **32-bit (i386) apps need `vm.mmap_min_addr` at 4096 or lower** (`sudo sysctl vm.mmap_min_addr=4096`; most distributions default to 65536). Their binaries are usually linked to load at 0x1000, and without the setting Darling fails to map them ("Cannot mmap segment __TEXT at 0x1000: Operation not permitted"). Mention the setting in the report so readers know to set it, but rate as if it were set.
 
 ## 6. Screenshots that help
 At most **5** per report, each **at most 150 KB**, PNG or JPEG. `scripts/shot.sh` captures and shrinks them:
