@@ -20,7 +20,7 @@ Host tools needed: ImageMagick, `pngquant`, `xdotool` and `xwd` for X11, `grim` 
 ## 2. Install it in the guest
 Host files are visible in the guest under `/Volumes/SystemRoot`.
 - **DMG:** mount on the host with `darling-dmg app.dmg <mnt> &` (unmount with `fusermount -u <mnt>`), then `darling shell cp -R "/Volumes/SystemRoot<mnt>/App.app" /Applications/`. Alternatively try `darling shell hdiutil attach /Volumes/SystemRoot<path>/app.dmg`, which also tests Darling's own DMG support.
-- **ZIP:** Darling's `ditto` understands only `-rsrc` and `--bom`, so `ditto -x -k` fails with "Bad argument #1". Use the guest's unzip: `darling shell unzip -q -o -d /Applications "/Volumes/SystemRoot<path>/app.zip" -x '__MACOSX/*'` (it keeps the executable bit). Mention in the report that unzip was used. Use `</dev/null` and `timeout -s KILL` as always.
+- **ZIP:** unpack it with Darling's `ditto`, as a user on macOS would: `darling shell ditto -x -k "/Volumes/SystemRoot<path>/app.zip" /Applications`. It keeps the executable bit. Afterwards, check that no `__MACOSX` folder was left in `/Applications`. On a Darling build older than the reimplemented `ditto` (where `ditto -x -k` fails with "Bad argument #1"), use the guest's unzip instead: `darling shell unzip -q -o -d /Applications "/Volumes/SystemRoot<path>/app.zip" -x '__MACOSX/*'`. Use `</dev/null` and `timeout -s KILL` as always.
 - **PKG:** `darling shell sudo installer -pkg "/Volumes/SystemRoot<path>/app.pkg" -target /`. A failing installer is a finding for the report, not a reason to unpack the payload by hand without saying so.
 - Install the way a user would. Any manual step needed (a quarantine attribute, a missing directory) is a workaround, and it lowers the rating (section 5).
 
