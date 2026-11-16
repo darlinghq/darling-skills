@@ -87,24 +87,24 @@ scripts/shot.sh shot2.jpg                       # whole screen; JPEG for photo-l
 ## 7. Write the entry
 Fork darlinghq/darling-appdb-database and clone your fork (for a local trial without a fork, a plain clone and a local branch work; use `origin/master` as the base below). Then:
 ```
-python3 -I scripts/new_entry.py <checkout> <Name> <version> <status> description.txt \
+python3 -I scripts/new_entry.py <checkout> "<Name>" <version> <status> description.txt \
     --screenshot shot1.png --screenshot shot2.png \
     [--new-software '{"links":{"product":"https://..."},"cpu":["x86-64"],"free":true,"categories":["productivity"]}'] \
     [--new-version '{"download":"https://...","issues":[1234]}']
 ```
 The layout, which the script produces:
-- `data/software/<N>/<Na>/<Name>/index.json`: the software. `name` must equal the directory name.
+- `data/software/<N>/<Na>/<Dir>/index.json`: the software. `name` is the display name; `<Dir>` is that name with every character other than letters, digits, `.`, `_` and `-` removed (`SkyFighters 1945` is stored under `SkyFighters1945`).
   - `cpu` is any of `x86-64`, `i386`, `arm64`. `free` is true or false.
   - `categories` are ids that exist in `data/categories/` (for example games, productivity, developer-tools).
   - `links` maps labels such as `product` to https URLs.
-  - The shard directories are the name's first character and first two characters, case-sensitive; `_` replaces the second for one-character names.
+  - The shard directories are the directory name's first character and first two characters, case-sensitive; `_` replaces the second for one-character names.
 - `.../versions/<version>/index.json`: `version` must equal the directory name. `download` is the official https URL. `issues` lists related Darling GitHub issue numbers.
 - `.../versions/<version>/reports/<8 hex digits>.json`:
   - `status`, `description` (at most 5000 characters) and `screenshots` (file names).
   - The screenshots go in `reports/<same id>/screenshot-0.png`, `screenshot-1.png`, and so on. The script picks a random id.
 
 Rules that matter:
-- **Name:** letters, digits, `.`, `_` and `-` only, no spaces. Use the product's own spelling without spaces, such as `TextEdit` or `AngryBirds`. A name that differs from an existing one only by case is rejected.
+- **Name:** the product's own spelling as people see it, with its spaces and capitals: `The Unarchiver`, `SkyFighters 1945`, `Angry Birds`, `TextEdit`. Take it from the app's menu bar, About window or the vendor's site, not from the bundle's file name. Leave out version numbers and words such as "for Mac" or "Free", unless the product's name really includes them. `new_entry.py` derives the directory from it; single spaces only, at most 100 characters. A name whose directory differs from an existing one only by case is rejected. Pass the name quoted on the command line.
 - **New files only:** a PR may only add files. Changing an existing file is allowed but always needs a maintainer.
 - **One app per PR:** keep each PR to one software. Each report gets its own id.
 
