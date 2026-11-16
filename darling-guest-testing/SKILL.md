@@ -1,6 +1,6 @@
 ---
 name: darling-guest-testing
-description: Build a Darling change, install only what changed, restart the container and test it inside the guest - cross-compiling guest test programs on the host, running them with darling shell, GUI tests on Xvfb (X11) or headless sway (Wayland), before/after comparison and cleanup of leftover processes. Use whenever a Darling change has to be verified at runtime.
+description: Build a Darling change, install only what changed, restart the container and test it inside the guest - cross-compiling guest test programs on the host, running them with darling shell, GUI tests on Xvfb (X11) or headless sway (Wayland), measuring audio output, before/after comparison and cleanup of leftover processes. Use whenever a Darling change has to be verified at runtime.
 ---
 
 # Testing a change inside Darling
@@ -123,6 +123,22 @@ scripts/wayland.sh stop
   - Injected input also provides the input serial that clipboard, drag-and-drop and pointer-lock requests need, so those tests can run instead of SKIP.
   - Pair every injected event with a check through the API (`characters`, `keyCode`, modifier flags, pasteboard contents), printed as PASS/FAIL.
 - **After any change to shared AppKit or CoreGraphics code, rerun the X11 GUI tests on Xvfb too.** The two backends share most of the window code.
+
+### Audio
+```
+python3 -I scripts/audio-ramp.py gen ramp.wav --seconds 4     # 440 Hz tone, level rising linearly from 0.1 to 0.9
+scripts/audio-capture.sh cap.raw timeout -s KILL 60 darling shell afplay /Volumes/SystemRoot$PWD/ramp.wav </dev/null
+python3 -I scripts/audio-ramp.py analyze cap.raw --seconds 4
+scripts/audio-capture.sh ref.raw pacat ramp.wav                # the same tone played natively, as the reference
+python3 -I scripts/audio-ramp.py analyze ref.raw --seconds 4
+```
+- **What the scripts do:**
+  - `audio-capture.sh` loads Darling's null-sink fixture (`tests/coreaudio/fixture.sh`) and makes it the default sink. It records the sink's monitor while the command runs, then restores the old default sink. The launcher does not pass `PULSE_SINK` into the guest, so the default sink is how a guest program's output gets routed. Other host programs' audio also goes to the null sink while the capture runs.
+  - Because the tone's level rises linearly, each level corresponds to one point of the tone. `analyze` uses this to report the start lost, the end lost, and each gap: either a stall (silence inserted, nothing lost) or lost data, including jumps with no silence. It estimates the playback gain itself, and its resolution is about ±10 ms. A test program can make the same tone itself. What matters is a linear rise of the level, not the file.
+- **Always compare with the native `pacat` reference on the same sink.** The monitor misrepresents the edges of a stream, and the cause is the monitor, not the player:
+  - On a null sink, the start of a new stream is missing from the capture. Native `pacat` loses about 75 ms at 186 ms latency, and over a second at its default latency. Only lost start beyond the reference is Darling's.
+  - On a hardware (ALSA) sink, data dropped at stop never shows as a lost end, because the sink rendered ahead and the monitor already got it. Measure the end on the null sink.
+- **Ending the player:** `timeout -s KILL` ends the launcher, but the guest program can keep playing into the next capture. Run `darling shutdown` and `scripts/leftovers.sh -k` before the next capture.
 
 ## 6. Regression set
 After the targeted tests pass, run your regression set if you keep one (Darling's own `ctest` in the build dir, plus any guest programs you collect). Compare it with the recorded baseline, not with "all green": some cases have known non-zero exit codes. Report what changed against the baseline.
