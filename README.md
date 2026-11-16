@@ -4,7 +4,7 @@ Instructions and helper scripts that teach an AI coding agent how to work on [Da
 
 | Skill | What it covers |
 |---|---|
-| `darling-guest-testing` | Rebuilding and installing only what changed, cross-compiling guest test programs, running them with `darling shell`, GUI tests on Xvfb (X11) or headless sway (Wayland), input injection, cleaning up leftovers |
+| `darling-guest-testing` | Rebuilding and installing only what changed, cross-compiling guest test programs, running them with `darling shell`, GUI tests on Xvfb (X11) or headless sway (Wayland), input injection, measuring audio output, cleaning up leftovers |
 | `darling-debugging` | lldb inside the guest: installing it, batch debugging of x86_64 and i386 programs, diagnosing debugger failures |
 | `darling-app-compat-scan` | Listing the frameworks, classes and symbols an application uses that Darling lacks |
 | `darling-appdb-report` | Testing an app and submitting a compatibility report to [darling-appdb-database](https://github.com/darlinghq/darling-appdb-database) |
