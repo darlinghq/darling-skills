@@ -6,7 +6,8 @@ darling-appdb-database validator expects.
 usage: new_entry.py <database checkout> <name> <version> <status> <description file>
            [--screenshot FILE ...] [--new-software JSON] [--new-version JSON]
 
-  name           software id and display name: [A-Za-z0-9][A-Za-z0-9._-]*
+  name           the display name, in the product's own spelling ("SkyFighters 1945");
+                 the directory is the name without characters outside [A-Za-z0-9._-]
   status         platinum | gold | silver | bronze | garbage
   --new-software JSON object with links, cpu, free, categories (name is added)
   --new-version  JSON object with download and optionally issues (version is added)
@@ -22,6 +23,12 @@ import sys
 import uuid
 
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+MAX_DISPLAY_NAME = 100
+
+
+def directory_name(display_name):
+    """The directory a display name is stored under ("Angry Birds" -> "AngryBirds")."""
+    return re.sub(r"[^A-Za-z0-9._-]", "", display_name)
 STATUSES = {"platinum", "gold", "silver", "bronze", "garbage"}
 
 
@@ -52,7 +59,12 @@ def main():
     p.add_argument("--new-version")
     a = p.parse_args()
 
-    for value, what in ((a.name, "name"), (a.version, "version")):
+    if (not a.name or len(a.name) > MAX_DISPLAY_NAME or a.name != a.name.strip() or "  " in a.name
+            or any(ord(c) < 0x20 or ord(c) == 0x7f for c in a.name)):
+        sys.exit("name %r must be 1 to %d characters without leading, trailing or repeated spaces"
+                 % (a.name, MAX_DISPLAY_NAME))
+    dirname = directory_name(a.name)
+    for value, what in ((dirname, "directory name"), (a.version, "version")):
         if not NAME.fullmatch(value):
             sys.exit("%s %r must match %s" % (what, value, NAME.pattern))
     if a.status not in STATUSES:
@@ -67,11 +79,11 @@ def main():
     if not description or len(description) > 5000:
         sys.exit("the description must be 1 to 5000 characters")
 
-    sw = software_dir(a.db, a.name)
+    sw = software_dir(a.db, dirname)
     existing = os.path.join(a.db, "data", "software")
     for root, dirs, _ in os.walk(existing):
         for d in dirs:
-            if root.count(os.sep) - existing.count(os.sep) == 2 and d.lower() == a.name.lower() and d != a.name:
+            if root.count(os.sep) - existing.count(os.sep) == 2 and d.lower() == dirname.lower() and d != dirname:
                 sys.exit("software %r already exists with different case; use that name" % d)
 
     written = []
@@ -80,7 +92,7 @@ def main():
         data.update(json.loads(a.new_software))
         write_json(os.path.join(sw, "index.json"), data, written)
     elif not os.path.exists(os.path.join(sw, "index.json")):
-        sys.exit("software %r does not exist; pass --new-software" % a.name)
+        sys.exit("software %r does not exist; pass --new-software" % dirname)
 
     ver = os.path.join(sw, "versions", a.version)
     if a.new_version:
