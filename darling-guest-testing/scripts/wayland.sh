@@ -29,19 +29,11 @@ if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
 	SWAYSOCK=$(ls "$RUN"/sway-ipc.*.sock 2>/dev/null | head -1) swaymsg -q "output * scale $scale" || true
 else
 	mkdir -p "$RUN"; chmod 700 "$RUN"
-	# The standard background (light gray, faint Darling logos; make-background.sh),
-	# so screenshots and transparent window areas are not shown on black. sway
-	# draws images through swaybg; without it, use the background's gray.
-	bg="$(cd "$(dirname "$0")" && pwd)/background.png"
-	if command -v swaybg >/dev/null && [ -f "$bg" ]; then
-		bgline="output * bg $bg fill"
-	else
-		bgline="output * bg #E8E8EA solid_color"
-	fi
 	# no borders or tiling, so window frames are exactly what the client asked for
 	cat > "$RUN/config" <<EOF
 output * resolution 1920x1080 scale $scale
-$bgline
+# white, so screenshots and transparent window areas are not shown on black
+output * bg #FFFFFF solid_color
 default_border none
 default_floating_border none
 for_window [shell=".*"] floating enable

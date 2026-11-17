@@ -1,8 +1,8 @@
 #!/bin/bash
-# make-background.sh: render the standard desktop background for guest GUI
-# sessions and AppDB screenshots: a light gray field with the Darling logo,
-# gray, faint and tilted, repeated in an offset grid. Matches the AppDB
-# placeholder for entries without screenshots.
+# make-background.sh: render the standard AppDB background (set-background.sh
+# applies it to a session): a light gray field with the Darling logo, gray,
+# faint and tilted, repeated in an offset grid. Matches the AppDB placeholder
+# for entries without screenshots.
 # Usage: make-background.sh [WIDTHxHEIGHT] [output.png]   (default 1920x1080)
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)

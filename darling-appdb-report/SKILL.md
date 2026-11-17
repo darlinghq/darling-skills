@@ -25,14 +25,14 @@ Host files are visible in the guest under `/Volumes/SystemRoot`.
 - Install the way a user would. Any manual step needed (a quarantine attribute, a missing directory) is a workaround, and it lowers the rating (section 5).
 
 ## 3. Start a display session with the standard background
-Use the darling-guest-testing scripts. Both give the **standard Darling background**: a light gray field with faint, tilted Darling logos in an offset grid (`<guest-testing>/scripts/background.png`), the same look as the AppDB's placeholder for entries without screenshots. All reports then share one recognisable backdrop instead of a flat colour, and transparent window corners, shadows and sheets are not shown on black.
-- X11: `xvfb.sh` sets it as the root window background with ImageMagick's `display`.
-- Wayland: `wayland.sh` sets it as the sway output background, which needs `swaybg`.
-- Without those tools, both fall back to the background's gray (`#E8E8EA`). That is acceptable, but the logo background is preferred for AppDB screenshots.
-- For a screen size other than 1920x1080, regenerate it with `make-background.sh WIDTHxHEIGHT` (needs ImageMagick with SVG support).
+Start the session with the darling-guest-testing scripts, then give it the **standard AppDB background** with `scripts/set-background.sh`. The background (`scripts/background.png`) is a light gray field with faint, tilted Darling logos in an offset grid: the same look as the AppDB's placeholder for entries without screenshots. All reports then share one recognisable backdrop instead of a flat colour, and transparent window corners, shadows and sheets don't show up black.
+- X11 sets it as the root window background with ImageMagick's `display`. Wayland sets it as the sway output background, which needs `swaybg`.
+- Without those tools, the script sets the background's gray (`#E8E8EA`). That's acceptable, but the logo background is preferred.
+- For a screen size other than 1920x1080, regenerate it with `scripts/make-background.sh WIDTHxHEIGHT`, which needs ImageMagick with SVG support.
 ```
 <guest-testing>/scripts/xvfb.sh                          # X11: Xvfb :99 + xfwm4
 eval "export $(<guest-testing>/scripts/wayland.sh)"      # Wayland: headless sway
+DISPLAY=:99 scripts/set-background.sh                    # or, for Wayland, with the exported variables
 ```
 - Test the backend you report on. X11 is Darling's default; Wayland is selected by `DARLING_APPKIT_BACKEND=wayland` plus `WAYLAND_DISPLAY` (see the Wayland section of darling-guest-testing). Run `darling shutdown` before switching between them.
 - For a 32-bit (i386) app, `vm.mmap_min_addr` must be 4096 or lower (see section 5). Darling users usually set it permanently (for example `vm.mmap_min_addr = 4096` in a file under `/etc/sysctl.d/`); if your host doesn't have it set, set it before testing.

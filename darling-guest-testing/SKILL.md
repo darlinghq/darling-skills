@@ -91,7 +91,7 @@ timeout -s KILL 120 darling shell /Volumes/SystemRoot/<abs host path>/t </dev/nu
 
 ## 5. GUI tests
 ```
-scripts/xvfb.sh             # Xvfb :99 (1920x1080x24, RANDR) + xfwm4, standard background (background.png)
+scripts/xvfb.sh             # Xvfb :99 (1920x1080x24, RANDR) + xfwm4
 timeout -s KILL 120 darling shell env DISPLAY=:99 /Volumes/SystemRoot/.../t </dev/null > out.txt 2>&1
 ```
 - Use display `:99` only. xfwm4 is needed because some window behaviour (focus, stacking, maximise) needs a real window manager.
