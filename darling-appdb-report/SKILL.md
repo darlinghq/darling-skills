@@ -1,6 +1,6 @@
 ---
 name: darling-appdb-report
-description: Test a macOS application in Darling and contribute a compatibility report to the Darling AppDB (darlinghq/darling-appdb-database) - install the app in the guest, run it in an X11 or Wayland session with a white background, exercise its main functions, take useful screenshots within the size limits, rate it, write the JSON entry and open the pull request. Use when asked to test an app for the AppDB, add an app or version to it, or submit a compatibility report.
+description: Test a macOS application in Darling and contribute a compatibility report to the Darling AppDB (darlinghq/darling-appdb-database) - install the app in the guest, run it in an X11 or Wayland session with the standard Darling background, exercise its main functions, take useful screenshots within the size limits, rate it, write the JSON entry and open the pull request. Use when asked to test an app for the AppDB, add an app or version to it, or submit a compatibility report.
 ---
 
 # Contributing an AppDB compatibility report
@@ -9,7 +9,7 @@ The AppDB (appdb.darlinghq.org) lists how well macOS applications work in Darlin
 
 This skill builds on **darling-guest-testing** (running programs in the guest, Xvfb, headless sway, input injection). Read that skill's ground rules first: `</dev/null`, `timeout -s KILL`, no piping `darling shell` output, no `rm` in the guest.
 
-Host tools needed: ImageMagick, `pngquant`, `xdotool` and `xwd` for X11, `grim` for Wayland, plus `wtype` and `wlrctl` to type and click on Wayland. If one is missing, ask the user to install it; don't work around it.
+Host tools needed: ImageMagick, `pngquant`, `xdotool`, `xwd`, `xprop` and `xdpyinfo` for X11, `grim` for Wayland, plus `wtype` and `wlrctl` to type and click on Wayland. If one is missing, ask the user to install it; don't work around it.
 
 ## 1. Pick the app and version
 - Note the exact version and its **official download URL** (https, from the vendor; no mirrors, URL shorteners or raw IPs, which block auto-merge).
@@ -24,11 +24,15 @@ Host files are visible in the guest under `/Volumes/SystemRoot`.
 - **PKG:** `darling shell sudo installer -pkg "/Volumes/SystemRoot<path>/app.pkg" -target /`. A failing installer is a finding for the report, not a reason to unpack the payload by hand without saying so.
 - Install the way a user would. Any manual step needed (a quarantine attribute, a missing directory) is a workaround, and it lowers the rating (section 5).
 
-## 3. Start a display session with a white background
-Use the darling-guest-testing scripts. Both now give a **white** background: the root window on X11 (`xsetroot -solid white`) and the output background in sway. A white background keeps transparent window corners, shadows and sheets from showing up black, and lets screenshots match the AppDB pages.
+## 3. Start a display session with the standard background
+Start the session with the darling-guest-testing scripts, then give it the **standard AppDB background** with `scripts/set-background.sh`. The background (`scripts/background.png`) is a light gray field with faint, tilted Darling logos in an offset grid: the same look as the AppDB's placeholder for entries without screenshots. All reports then share one recognisable backdrop instead of a flat colour, and transparent window corners, shadows and sheets don't show up black.
+- X11 sets it as the root window background with ImageMagick's `display`. Wayland sets it as the sway output background, which needs `swaybg`.
+- Without those tools, the script sets the background's gray (`#E8E8EA`). That's acceptable, but the logo background is preferred.
+- For a screen size other than 1920x1080, regenerate it with `scripts/make-background.sh WIDTHxHEIGHT`, which needs ImageMagick with SVG support.
 ```
 <guest-testing>/scripts/xvfb.sh                          # X11: Xvfb :99 + xfwm4
 eval "export $(<guest-testing>/scripts/wayland.sh)"      # Wayland: headless sway
+DISPLAY=:99 scripts/set-background.sh                    # or, for Wayland, with the exported variables
 ```
 - Test the backend you report on. X11 is Darling's default; Wayland is selected by `DARLING_APPKIT_BACKEND=wayland` plus `WAYLAND_DISPLAY` (see the Wayland section of darling-guest-testing). Run `darling shutdown` before switching between them.
 - For a 32-bit (i386) app, `vm.mmap_min_addr` must be 4096 or lower (see section 5). Darling users usually set it permanently (for example `vm.mmap_min_addr = 4096` in a file under `/etc/sysctl.d/`); if your host doesn't have it set, set it before testing.
@@ -78,7 +82,7 @@ scripts/shot.sh shot2.jpg                       # whole screen; JPEG for photo-l
 ```
 - **Show the app doing its job**, not a splash screen, an empty window or a loading bar. One screenshot of the main window with real content is worth more than several of dialogs.
 - **One idea per screenshot:** the main window in use, a key feature working, and, if something is broken, the clearest picture of the breakage (the garbled view or the error dialog).
-- **Crop to the window** (`-w`), with the white background around it. Make the window a sensible size first; a 600x400 window reads better scaled down than a full 1920x1080 screen.
+- **Crop to the window** (`-w`), keeping a margin of the standard background around it. Make the window a sensible size first; a 600x400 window reads better scaled down than a full 1920x1080 screen.
 - **PNG for UI** (sharp text; `pngquant` keeps it small), **JPEG for games, video and photos**. `new_entry.py` keeps the extension (`screenshot-0.jpg`); the validator accepts only `.png` and `.jpg`, not `.jpeg`. A full-screen capture converted with `convert shot.png -resize 1280x720 -strip -quality 85 out.jpg` is usually under 150 KB. If text becomes unreadable at 150 KB, crop tighter instead of shrinking further.
 - **No personal data:** no real names, email addresses, usernames in paths, host names, tokens or licence keys. Use a neutral guest user and sample documents.
 - **Wait for drawing to finish.** `-w` waits up to 10 s for the window to appear, but not for its contents; a capture right after a window opens can show it half drawn. Wait until the app is idle (a few seconds, longer for games and first launches) before shooting.
